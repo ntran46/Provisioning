@@ -1,0 +1,67 @@
+---
+# tasks file for frontend
+- name: Make sure Nginx is installed
+  become: true
+  package:
+    name: 
+      - nginx
+    state: present
+
+- name: Make sure Nginx is enable and running
+  become: true
+  systemd:
+    name: nginx
+    enabled: yes
+    state: restarted
+
+- name: Create the frontend folder if not existed
+  become: true
+  ansible.builtin.file:
+    path: "{{ http_static_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ubuntu}}"
+
+- name: Clone the frontend git repo
+  become: yes
+  become_user: "{{ ubuntu }}"
+  ansible.builtin.git:
+    repo: https://github.com/bezkoder/react-crud-web-api.git
+    dest: "{{ http_static_dir }}"
+    force: yes
+  register: clone_repo
+
+- name: Install npm dependencies based on package.json.
+  become: yes
+  become_user: "{{ubuntu}}"
+  community.general.npm:
+    path: "{{ http_static_dir }}"
+  when: clone_repo.changed
+
+- name: Copy http-common.js to the frontend folder
+  become: true
+  template:
+    src: http-common.js
+    dest: "{{ http_static_dir }}/src/http-common.js"
+    
+- name: Make sure the frontend application is built
+  become: yes
+  become_user: "{{ubuntu}}"
+  ansible.builtin.shell: npm run-script build
+  args:
+    chdir: "{{ http_static_dir }}/"
+  register: frontend_build
+
+- name: Copy the nginx config file to the Frontend server
+  become: true
+  template:
+    src: default
+    dest: /etc/nginx/sites-available/default
+  register: nginx_conf_change
+
+- name: Make sure Nginx is restarted when any configuration is changed
+  become: true
+  systemd:
+    name: nginx
+    state: restarted
+  when: (nginx_conf_change.changed) or (frontend_build.changed)

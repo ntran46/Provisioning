@@ -1,0 +1,80 @@
+---
+# tasks file for creating AWS infrastructure
+- name: Provision VPC
+  ec2_vpc_net:
+    cidr_block: "{{ VPC_cidr_block }}"
+    region: "{{ AWS_REGION }}"
+    name: "{{ AWS_PREFIX }}_VPC"
+    state: present
+  register: aws_vpc_info
+
+- name: Provision subnet
+  ec2_vpc_subnet:
+    cidr: "{{ Subnet_cidr_block }}"
+    region: "{{ AWS_REGION }}"
+    vpc_id: "{{ aws_vpc_info.vpc.id }}"
+    state: present
+    tags:
+      Name: "{{ AWS_PREFIX }}_SUBNET"
+  register: subnet_info
+
+- name: Provision Internet Gateway
+  community.aws.ec2_vpc_igw:
+    vpc_id: "{{ aws_vpc_info.vpc.id }}"
+    region: "{{ AWS_REGION }}"
+    tags:
+      Name: "{{ AWS_PREFIX }}_IGW"
+    state: present
+  register: igw_info
+
+- name: Set up public subnet route table
+  ec2_vpc_route_table:
+    vpc_id: "{{ aws_vpc_info.vpc.id }}"
+    region:  "{{ AWS_REGION }}"
+    tags:
+      Name: "{{ AWS_PREFIX }}_RTBL"
+    subnets: "{{ subnet_info.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_info.gateway_id }}"
+  register: public_route_table
+
+- name: Create EC2 Security group
+  ec2_group:
+    name: "{{ AWS_PREFIX }}_SECGRP"
+    description: Allow SSH access to VPC from Office and Home
+    vpc_id: "{{ aws_vpc_info.vpc.id }}"
+    region: "{{ AWS_REGION }}"
+    tags:
+      Name: "{{ AWS_PREFIX }}_SECGRP"
+    rules:
+      - proto: tcp
+        ports:
+          - 80
+        cidr_ip: 0.0.0.0/0
+        rule_desc: allow all on port 80
+      - proto: tcp
+        ports:
+          - 22
+        cidr_ip:
+          - "{{ Office_IP_Range }}" 
+          - "{{ HOME_IP_Range }}"
+        rule_desc: allow SSH from Office and HOME
+  register: secgrp_info
+
+- name: setup EC2
+  community.aws.ec2_instance:
+    instance_type: t2.micro
+    region: "{{ AWS_REGION }}"
+    name: "{{ AWS_PREFIX }}_EC2"
+    key_name: "{{ AWS_key }}"
+    network:
+      assign_public_ip: yes
+      delete_on_termination: yes
+    vpc_subnet_id: "{{ subnet_info.subnet.id }}"
+    image_id: ami-053ac55bdcfe96e85
+    security_group: "{{ secgrp_info.group_id }}"
+    tags:
+      Name: "{{ AWS_PREFIX }}_EC2"
+    wait: yes
+  register: ec2_info

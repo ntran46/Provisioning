@@ -1,0 +1,41 @@
+---
+# tasks file for cleaning AWS infrastructure
+- name: Terminate a particular instance by tag
+  community.aws.ec2_instance:
+    state: terminated
+    filters:
+      "tag:Name": "{{ AWS_PREFIX }}_EC2"
+
+- name: Remove subnet
+  amazon.aws.ec2_vpc_subnet:
+    state: absent
+    vpc_id: "{{ aws_vpc_info.vpcs[0].vpc_id }}"
+    cidr: "{{ Subnet_cidr_block }}"
+
+- name: Remove Internet Gateway
+  community.aws.ec2_vpc_igw:
+    vpc_id: "{{ aws_vpc_info.vpcs[0].vpc_id }}"
+    state: absent
+
+- name: Delete security group by its ID
+  amazon.aws.ec2_group:
+    region: "{{ AWS_REGION }}"
+    group_id: "{{ aws_group_info.security_groups[0].group_id }}"
+    state: absent
+
+- name: Delete route table
+  ec2_vpc_route_table:
+    vpc_id: "{{ aws_vpc_info.vpcs[0].vpc_id }}"
+    region: "{{ AWS_REGION }}"
+    route_table_id: "{{ aws_route_info.route_tables[0].route_table_id }}"
+    lookup: id
+    state: absent
+
+- name: Delete the VPC
+  ec2_vpc_net:
+    name: "{{ AWS_PREFIX }}_VPC"
+    cidr_block: "{{ VPC_cidr_block }}"
+    region: "{{ AWS_REGION }}"
+    state: absent
+    purge_cidrs: yes
+

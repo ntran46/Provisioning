@@ -1,0 +1,82 @@
+---
+# tasks file for backend
+- name: Update the package list
+  become: true
+  apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: Make sure the acl package is installed
+  become: true
+  package:
+    name: acl
+    state: present
+
+- name: Make sure user backend is created
+  become: true
+  user:
+    name: "{{ backend_user }}"
+    state: present
+
+- name: Create the backend folder if not existed
+  become: true
+  ansible.builtin.file:
+    path: "{{ backend_folder }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ backend_user }}"
+
+- name: Get the NodeJS version 14 package
+  become: true
+  get_url:
+    url: https://deb.nodesource.com/setup_14.x
+    dest: "{{ backend_home}}/install_nodejs_script"
+  register: download_script
+
+- name: Run the nodejs installation script if it exists
+  become: true
+  shell: bash "{{ backend_home}}/install_nodejs_script"
+  when: download_script.changed
+
+- name: Make sure nodejs package is installed
+  become: true
+  package:
+    name: nodejs
+    state: present
+
+- name: Clone the backend git repo
+  become: yes
+  become_user: "{{ backend_user }}"
+  ansible.builtin.git:
+    repo: https://github.com/bezkoder/nodejs-express-sequelize-mysql.git
+    dest: "{{ backend_folder }}"
+    update: yes
+    force: yes
+  register: clone_backend
+
+- name: Install npm dependencies based on package.json
+  become: yes
+  become_user: "{{ backend_user }}"
+  community.general.npm:
+    path: "{{ backend_folder }}"
+  when: clone_backend.changed
+
+- name: Copy the node config file to Backend server
+  become: true
+  template:
+    src: db.config.js
+    dest: "{{ backend_folder}}/app/config/db.config.js"
+
+- name: Copy the backend service file to the Backend server
+  become: true
+  template:
+    src: backend.service
+    dest: /etc/systemd/system/backend.service
+
+- name: Make sure backend service is enabled and running
+  become: true
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+    name: backend    

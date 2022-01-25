@@ -1,0 +1,17 @@
+---
+# vars file for aws
+AWS_PREFIX: IaaS
+AWS_REGION: us-west-1
+VPC_cidr_block: 10.40.0.0/16
+Subnet_cidr_block: 10.40.10.0/24
+
+# Specify IP range to only access remote from those IP addresses
+Office_IP_Range: 40.92.68.170/32
+
+# Your home Public IP address range
+HOME_IP_Range: 142.231.0.0/16
+
+# The name of file pem, must be exactly the same
+AWS_key: aws_key
+
+

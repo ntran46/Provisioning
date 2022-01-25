@@ -1,0 +1,24 @@
+---
+- hosts: database
+  tasks:
+    - name: Include the database role
+      vars:
+        backend_db_password: password
+        mysql_password: P@ssw0rd
+      include_role:
+        name: database
+- hosts: backend
+  tasks:
+    - name: Include the backend role
+      vars:
+        backend_db_password: password
+        backend_db_host: 192.168.150.11
+      include_role:
+        name: backend
+- hosts: frontend
+  tasks:
+    - name: Include the frontend role
+      vars:
+        http_backend_url: http://192.168.150.10:8080
+      include_role:
+        name: frontend

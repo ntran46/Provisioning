@@ -1,0 +1,7 @@
+---
+# vars file for database
+db_folder: /tmp
+backend_db_name: tutorials
+backend_db_user: backend
+backend_db_password: acit4640
+mysql_password: acit4640

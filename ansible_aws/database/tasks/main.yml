@@ -1,0 +1,58 @@
+---
+# tasks file for database
+- name: Update the package list
+  become: true
+  apt:
+    update_cache: yes
+    upgrade: yes
+# tasks file for database
+- name: Make sure MySQL server package is installed
+  become: true
+  package:
+    name: 
+      - mysql-server
+    state: present
+
+- name: Make sure mysqld service is emabled and run
+  become: true
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: yes
+    name: mysql
+
+- name: Copy the db_init.sql do MySQL server
+  become: true
+  template:
+    src: db_init.sql
+    dest: "{{ db_folder }}"
+
+- name: Check the state of MySQL file
+  stat:
+    path: "{{ db_folder}}/mysql.state"
+  register: state_file
+
+- name: Execute the db_init.sql if has not run yet
+  become: true
+  ansible.builtin.shell: mysql -u root < db_init.sql
+  args:
+    chdir: "{{ db_folder }}"
+  when: not state_file.stat.exists
+
+- name: Create MySQL state file
+  become: true
+  file:
+    path: "{{ db_folder}}/mysql.state"
+    state: touch
+  when: not state_file.stat.exists
+
+- name: Make sure MySQL service listening all on network
+  become: true
+  ansible.builtin.shell: sed -i '/^bind-address/ s/127.0.0.1/0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+  register: config_change
+
+- name: Restart MySQL service
+  become: true
+  service:
+    name: mysql
+    state: restarted
+  when: config_change.changed

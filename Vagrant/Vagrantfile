@@ -1,0 +1,55 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/focal64"
+  # config.vm.boot_timeout = 600
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.gui = false
+    vb.linked_clone = true
+    vb.customize [ "modifyvm", :id, "--uartmode1", "disconnected" ]
+  end
+
+  config.vm.define 'backend' do |backend|
+    backend.vm.provider "virtualbox" do |vb|
+        vb.name = "BACKEND"
+        vb.memory = 2048
+    end
+    backend.vm.hostname = "backend.local"
+    backend.vm.network "private_network", ip: "192.168.150.10"
+    backend.vm.provision "file", source: "./files/backend", destination: "/home/vagrant/"
+    backend.vm.provision "shell", path: "./files/backend/deploy_backend.sh"
+    # Do other machine-specific provisioning here
+  end
+
+  config.vm.define 'db' do |db|
+    db.vm.provider "virtualbox" do |vb|
+        vb.name = "MySQL"
+        vb.memory = 2048
+    end
+    db.vm.hostname = "db.local"
+    db.vm.network "private_network", ip: "192.168.150.11"
+    db.vm.provision "file", source: "./files/db", destination: "/home/vagrant/"
+    db.vm.provision "shell", path: "./files/db/deploy_db.sh"
+    # Do other machine-specific provisioning here
+  end
+
+  config.vm.define "frontend" do |frontend|
+    frontend.vm.provider "virtualbox" do |vb|
+       vb.name = "FRONTEND"
+       vb.memory = 1536
+    end
+    frontend.vm.network "forwarded_port", guest: 80, host: 12080
+    frontend.vm.network "private_network", ip: "192.168.150.12"
+    frontend.vm.hostname = "frontend.local"
+    frontend.vm.provision "file", source: "./files/frontend", destination: "/home/vagrant/"
+    frontend.vm.provision "shell", path: "./files/frontend/deploy_frontend.sh"
+    # Do other machine-specific provisioning here
+    
+    # frontend.vm.provision "shell", inline: <<-SHELL
+    #         apt-get -y install nginx
+    #         mv /home/vagrant/nginx.conf /etc/nginx/sites-available/default
+    #         systemctl restart nginx
+    # SHELL
+  end
+end

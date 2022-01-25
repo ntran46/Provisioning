@@ -1,0 +1,79 @@
+---
+- hosts: localhost
+  tasks:
+    - name: Create AWS infrastructure
+      import_role:
+        name: aws
+        tasks_from: create.yml
+      tags:
+        - create
+    - name: Include AWS role (info)
+      import_role:
+        name: aws
+        tasks_from: info.yml
+      tags:
+        - info
+        - clean  
+        - never
+    - name: Clean AWS setup environment
+      import_role:
+        name: aws
+        tasks_from: clean.yml
+      tags:
+        - clean
+        - never
+    - name: Refresh the inventory
+      meta: refresh_inventory
+      tags:
+        - always
+        - info
+        - clean
+#        - provision
+
+- hosts: aws_ec2
+  tasks:
+    - name: Provision the application database
+      import_role:
+        name: database 
+      vars:
+        backend_db_password: password
+        mysql_password: P@ssw0rd
+        backend_db_name: tutorials
+      tags:
+        - provision
+
+    - name: Provision Frontend application
+      import_role:
+        name: frontend
+      vars:
+        http_backend_url: http://localhost:8080
+      tags:
+        - provision
+
+    - name: Provision the backend application
+      import_role:
+        name: backend
+      vars:
+        backend_db_password: password
+        backend_db_host: localhost
+      tags:
+        - provision
+
+    # Collect services informaion
+    - name: Collect facts about instance system services
+      service_facts:
+      register: services_state
+      tags:
+        - never
+        - info
+    - name: Validate tutorials app services are running
+      debug:
+        msg: 
+          - "Nginx State: {{services_state.ansible_facts.services['nginx.service']['state']}}"
+          - "Tutorials (backend) State: {{services_state.ansible_facts.services['backend.service']['state']}}"
+          - "MySQL State: {{services_state.ansible_facts.services['mysql.service']['state']}}"
+          - "Instance: {{ tags.Name }} - access via URL: http://{{ public_ip_address }}"
+      tags:
+        - never
+        - info
+      

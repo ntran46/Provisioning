@@ -1,0 +1,10 @@
+# The AWS access Key and ID are the credentials downloaded  from the IAM group 
+# In the AWS console, browse the IAM (Infrastructure and Access Management) section.
+# Create a new group, named it as desired and give this group the AdministratorAccess policy.
+
+# Create a new user in the group you created earlier.
+# Pick the username, and choose programmatic access.
+
+export AWS_ACCESS_KEY_ID="AKIAW3AUOLTHRLKWWBX5"
+export AWS_SECRET_ACCESS_KEY="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"
+export AWS_REGION="us-west-1"
